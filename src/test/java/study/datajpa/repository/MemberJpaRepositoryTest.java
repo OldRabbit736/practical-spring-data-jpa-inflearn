@@ -19,7 +19,7 @@ class MemberJpaRepositoryTest {
     @Autowired MemberJpaRepository memberJpaRepository;
 
     @Test
-    public void testMember() {
+    void testMember() {
         Member member = new Member("memberA");
         Member savedMember = memberJpaRepository.save(member);
 
@@ -27,12 +27,11 @@ class MemberJpaRepositoryTest {
 
         assertEquals(member.getId(), findMember.getId());
         assertEquals(member.getUsername(), findMember.getUsername());
-        assertEquals(member, findMember);
         assertSame(member, findMember);
     }
 
     @Test
-    public void basicCRUD() {
+    void basicCRUD() {
         Member member1 = new Member("member1");
         Member member2 = new Member("member2");
 
@@ -43,8 +42,8 @@ class MemberJpaRepositoryTest {
         Member findMember1 = memberJpaRepository.findById(member1.getId()).get();
         Member findMember2 = memberJpaRepository.findById(member2.getId()).get();
 
-        assertEquals(member1, findMember1);
-        assertEquals(member2, findMember2);
+        assertSame(member1, findMember1);
+        assertSame(member2, findMember2);
 
         // 리스트 조회 검증
         List<Member> all = memberJpaRepository.findAll();
@@ -60,5 +59,17 @@ class MemberJpaRepositoryTest {
 
         long afterDeleteCount = memberJpaRepository.count();
         assertEquals(0, afterDeleteCount);
+    }
+
+    @Test
+    void findByUsernameAndAgeGreaterThan() {
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("AAA", 20);
+        memberJpaRepository.save(member1);
+        memberJpaRepository.save(member2);
+
+        List<Member> members = memberJpaRepository.findByUsernameAndAgeGreaterThan("AAA", 15);
+        assertSame(member2, members.get(0));
+        assertEquals(1, members.size());
     }
 }

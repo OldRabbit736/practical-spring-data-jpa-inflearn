@@ -8,7 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 import study.datajpa.entity.Member;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -62,6 +61,24 @@ class MemberRepositoryTest {
 
         long afterDeleteCount = memberRepository.count();
         assertEquals(0, afterDeleteCount);
+    }
+
+    @Test
+    void findByUsernameAndAgeGreaterThan() {
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("AAA", 20);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+        List<Member> members = memberRepository.findByUsernameAndAgeGreaterThan("AAA", 15);
+        assertSame(member2, members.get(0));
+        assertEquals(1, members.size());
+    }
+
+    @Test
+    void test() {
+        List<Member> top3By = memberRepository.findTop3By();
+        top3By.forEach(System.out::println);
     }
 
 }
