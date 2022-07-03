@@ -72,4 +72,16 @@ class MemberJpaRepositoryTest {
         assertSame(member2, members.get(0));
         assertEquals(1, members.size());
     }
+
+    @Test
+    void testNamedQuery() {
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("BBB", 20);
+        memberJpaRepository.save(member1);
+        memberJpaRepository.save(member2);
+
+        List<Member> members = memberJpaRepository.findByUsername("AAA");
+        assertSame(member1, members.get(0));
+        assertEquals(1, members.size());
+    }
 }
