@@ -93,4 +93,16 @@ class MemberRepositoryTest {
         assertEquals(1, members.size());
     }
 
+    @Test
+    void testQuery() {
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("BBB", 20);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+        List<Member> members = memberRepository.findUser("AAA", 10);
+        assertSame(member1, members.get(0));
+        assertEquals(1, members.size());
+    }
+
 }
