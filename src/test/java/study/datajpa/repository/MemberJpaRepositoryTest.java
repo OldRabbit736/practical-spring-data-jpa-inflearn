@@ -89,7 +89,7 @@ class MemberJpaRepositoryTest {
         memberJpaRepository.save(member2);
 
         List<Member> members = memberJpaRepository.findByUsername("AAA");
-        //assertSame(member1, members.get(0));
+        assertSame(member1, members.get(0));
         assertEquals(1, members.size());
     }
 
