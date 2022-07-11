@@ -3,14 +3,17 @@ package study.datajpa.repository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
+import javax.persistence.NonUniqueResultException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -147,5 +150,54 @@ class MemberRepositoryTest {
 
         assertEquals(List.of(member1, member2), members);
     }
+
+    @Test
+    void returnType() {
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("BBB", 20);
+
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+
+        /* 찾은 멤버 갯수가 리턴타입에 맞을 때 */
+        List<Member> listAAA = memberRepository.findListByUsername("AAA");
+        Member oneAAA = memberRepository.findMemberByUsername("AAA");
+        Optional<Member> optionalAAA = memberRepository.findOptionalByUsername("AAA");
+
+        assertEquals(List.of(member1), listAAA);
+        assertEquals(member1, oneAAA);
+        assertEquals(Optional.of(member1), optionalAAA);
+
+        System.out.println(listAAA);
+        System.out.println(oneAAA);
+        System.out.println(optionalAAA);
+
+
+        /* 멤버를 못 찾았을 때 */
+        List<Member> listGhostMember = memberRepository.findListByUsername("ghost name");
+        Member ghostMember = memberRepository.findMemberByUsername("ghost name");
+        Optional<Member> optionalGhostMember = memberRepository.findOptionalByUsername("ghost name");
+
+        assertEquals(List.of(), listGhostMember);
+        assertNull(ghostMember);
+        assertEquals(Optional.empty(), optionalGhostMember);
+
+        System.out.println(listGhostMember);        // empty list
+        System.out.println(ghostMember);            // null
+        System.out.println(optionalGhostMember);    // Optional empty
+
+
+        /* 찾은 멤버 갯수가 리포지토리 리턴타입과 맞지 않을 때 */
+        Member member3 = new Member("AAA", 10); // AAA 이름을 갖는 멤버 추가
+        memberRepository.save(member3);
+
+        // AAA 이름을 갖는 멤버가 2명이다. 아래 메서드들은 단건을 반환하므로 실제 멤버 개수와 리턴타입이 맞지 않는다.
+        assertThrows(IncorrectResultSizeDataAccessException.class, () -> memberRepository.findMemberByUsername("AAA"));
+        assertThrows(IncorrectResultSizeDataAccessException.class, () -> memberRepository.findOptionalByUsername("AAA"));
+
+    }
+
+
 
 }

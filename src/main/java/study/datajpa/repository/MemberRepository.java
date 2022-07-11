@@ -8,6 +8,7 @@ import study.datajpa.entity.Member;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
@@ -42,4 +43,25 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     // 현업에서 많이 쓰인다고 한다.
     @Query("select m from Member m where m.username in :names")
     List<Member> findByNames(@Param("names") Collection<String> names);
+
+
+    // 스프링 데이터 JPA는 유연한 반환 타입 지원
+    // 컬렉션, 단건, 단건 Optional 등등 지원
+    // https://docs.spring.io/spring-data/jpa/docs/current/reference/html/#repository-query-return-types
+    // 조회 결과가 많거나 없으면?
+    // - 컬렉션 (Collection<T>, List<T> 등)
+    //      - 결과 없음: 빈 컬렉션 반환
+    // - 단건 조회 (T, Optional<T> 등)
+    //      - 결과 없음: null 반환
+    //      - 결과가 2건 이상: javax.persistence.NonUniqueResultException 예외 발생
+    //                       Spring Data JPA는 해당 exception을
+    //                       org.springframework.dao.IncorrectResultSizeDataAccessException
+    //                       으로 변경해서 exception을 발생시킨다.
+    // 아래 3개의 메서드는 같은 쿼리를 날린다. (find 다음 단어는 아무것이나 해도 상관없다. 즉 쿼리에 영향을 미치지 않는다.)
+    // 단건 또는 0건이 예상될 때 T와 Optional<T> 중 어느 것이 나을까?
+    // Optional이 더 나은 선택이다. 왜냐하면 Optional이라는 타입 자체가 empty의 가능성을 명시적으로 표현하며
+    // empty checking을 강제하기 때문에 더욱 type-safe 하다고 볼 수 있기 때문이다.
+    List<Member> findListByUsername(String username);   // 컬렉션
+    Member findMemberByUsername(String username);   // 단건
+    Optional<Member> findOptionalByUsername(String username);   // 단건 Optional
 }
