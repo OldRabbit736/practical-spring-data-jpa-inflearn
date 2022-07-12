@@ -10,7 +10,6 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@ToString(of = {"id", "name"})
 public class Team {
 
     @Id
@@ -19,10 +18,17 @@ public class Team {
     private Long id;
     private String name;
 
+    private String nationality;
+
     @OneToMany(mappedBy = "team")
     private List<Member> members = new ArrayList<>();
 
     public Team(String name) {
         this.name = name;
+    }
+
+    public Team(String name, String nationality) {
+        this.name = name;
+        this.nationality = nationality;
     }
 }
