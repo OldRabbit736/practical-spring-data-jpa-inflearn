@@ -4,13 +4,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
-import org.springframework.test.annotation.Rollback;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
-import javax.persistence.NonUniqueResultException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -22,8 +24,10 @@ import static org.junit.jupiter.api.Assertions.*;
 //@Rollback(false)
 class MemberRepositoryTest {
 
-    @Autowired MemberRepository memberRepository;
-    @Autowired TeamRepository teamRepository;
+    @Autowired
+    MemberRepository memberRepository;
+    @Autowired
+    TeamRepository teamRepository;
 
     @Test
     public void testMember() {
@@ -198,6 +202,155 @@ class MemberRepositoryTest {
 
     }
 
+    @Test
+    void pagingWithPage() {
+        // given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 10));
+        memberRepository.save(new Member("member3", 10));
+        memberRepository.save(new Member("member4", 10));
+        memberRepository.save(new Member("member5", 10));
+
+        int age = 10;
+        PageRequest pageRequest = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "username"));
+
+
+        // Page //
+        // 리턴 타입이 Page일 경우, 조건대로 member를 가져오는 쿼리, 총 member 수를 세는 쿼리, 총 2개의 쿼리가 나간다.
+        // 반환타입에 따라서 총 요소 갯수를 세는 쿼리가 나갈 수도, 안 나갈 수도 있다.
+        // Page 타입이 반환타입이라면 총 요소 갯수를 세는 쿼리도 같이 나간다.
+        Page<Member> page = memberRepository.findPageByAge(age, pageRequest);
+
+        assertEquals(3, page.getContent().size());  // 요청한 페이지 내용(getContent)의 크기
+        assertEquals(5, page.getTotalElements());   // 총 요소 갯수
+        assertEquals(0, page.getNumber());          // 현재 페이지
+        assertEquals(2, page.getTotalPages());      // 총 페이지 갯수
+        assertTrue(page.isFirst());                         // 첫 페이지인가?
+        assertTrue(page.hasNext());                         // 다음 페이지 존재하는가?
+
+        List<Member> content = page.getContent();
+        content.forEach(System.out::println);
+
+
+        // map을 이용한 변환
+        Page<MemberDto> dtoPage = page.map(member -> new MemberDto(member.getId(), member.getUsername(), "abc"));
+        dtoPage.getContent().forEach(System.out::println);
+
+    }
+
+    @Test
+    void pagingWithSlice() {
+        // given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 10));
+        memberRepository.save(new Member("member3", 10));
+        memberRepository.save(new Member("member4", 10));
+        memberRepository.save(new Member("member5", 10));
+
+        int age = 10;
+        PageRequest pageRequest = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "username"));
+
+
+        // Slice //
+        // 리턴 타입이 Slice일 경우, repository는 요소를 size + 1개 요청한다. 즉 3 + 1 = 4개를 요청한다.
+        // Page와는 달리 총 요소 갯수를 세는 쿼리는 나가지 않는다.
+        Slice<Member> slice = memberRepository.findSliceByAge(age, pageRequest);
+
+        assertEquals(3, slice.getContent().size()); // 요청한 slice 내용(getContent)의 크기
+        //assertEquals(5, slice.getTotalElements());        // Slice에는 총 요소 갯수를 반환하는 메서드가 존재하지 않는다.
+        assertEquals(0, slice.getNumber());         // 현재 페이지
+        //assertEquals(2, slice.getTotalPages());           // slice에는 총 페이지 갯수를 반환하는 메서드가 존재하니 않는다.
+        assertTrue(slice.isFirst());                        // 첫 페이지인가?
+        assertTrue(slice.hasNext());                        // 다음 페이지 존재하는가?
+
+
+        // map을 이용한 변환
+        Slice<MemberDto> dtoSlice = slice.map(member -> new MemberDto(member.getId(), member.getUsername(), "abc"));
+        dtoSlice.getContent().forEach(System.out::println);
+
+    }
+
+    @Test
+    void pagingWithList() {
+        // given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 10));
+        memberRepository.save(new Member("member3", 10));
+        memberRepository.save(new Member("member4", 10));
+        memberRepository.save(new Member("member5", 10));
+
+        int age = 10;
+        PageRequest pageRequest = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "username"));
+
+
+        // List //
+        // 단순하게 해당 조건에 부합하는 요소들만 리턴
+        // limit 수를 늘리지도, 총 요소 갯수를 구하려하지도 않는다.
+        List<Member> members = memberRepository.findListByAge(age, pageRequest);
+
+        members.forEach(System.out::println);
+
+    }
+
+    @Test
+    void pagingWithPageAndCustomQuery() {
+        // given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 10));
+        memberRepository.save(new Member("member3", 10));
+        memberRepository.save(new Member("member4", 10));
+        memberRepository.save(new Member("member5", 10));
+        //memberRepository.save(new Member("member6", 11));
+
+        int age = 10;
+        PageRequest pageRequest = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "username"));
+
+
+        // query가 수동 지정한대로 생성된다. count query는 query가 지정한 left join을 적용하여 자동 생성된다. --> 최적화가 필요하다.
+        // 그런데... age where 절이 적용 안되네...
+        Page<Member> page = memberRepository.findPageWithCustomQueryByAge(age, pageRequest);
+
+        assertEquals(3, page.getContent().size());  // 요청한 페이지 내용(getContent)의 크기
+        assertEquals(5, page.getTotalElements());   // 총 요소 갯수
+        assertEquals(0, page.getNumber());          // 현재 페이지
+        assertEquals(2, page.getTotalPages());      // 총 페이지 갯수
+        assertTrue(page.isFirst());                         // 첫 페이지인가?
+        assertTrue(page.hasNext());                         // 다음 페이지 존재하는가?
+
+        List<Member> content = page.getContent();
+        content.forEach(System.out::println);
+
+    }
+
+    @Test
+    void pagingWithPageAndCustomQueryCountQuery() {
+        // given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 10));
+        memberRepository.save(new Member("member3", 10));
+        memberRepository.save(new Member("member4", 10));
+        memberRepository.save(new Member("member5", 10));
+        //memberRepository.save(new Member("member6", 11));
+
+        int age = 10;
+        PageRequest pageRequest = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "username"));
+
+
+        // query, count query가 수동 지정한대로 생성된다.
+        // 그런데... age where 절이 적용 안되네...
+        Page<Member> page = memberRepository.findPageWithCustomQueryCountQueryByAge(age, pageRequest);
+
+        assertEquals(3, page.getContent().size());  // 요청한 페이지 내용(getContent)의 크기
+        assertEquals(5, page.getTotalElements());   // 총 요소 갯수
+        assertEquals(0, page.getNumber());          // 현재 페이지
+        assertEquals(2, page.getTotalPages());      // 총 페이지 갯수
+        assertTrue(page.isFirst());                         // 첫 페이지인가?
+        assertTrue(page.hasNext());                         // 다음 페이지 존재하는가?
+
+        List<Member> content = page.getContent();
+        content.forEach(System.out::println);
+
+    }
 
 
 }
