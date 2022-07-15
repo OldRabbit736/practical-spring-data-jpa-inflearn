@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import study.datajpa.dto.MemberDto;
@@ -59,7 +60,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
         - 컬렉션 (Collection<T>, List<T> 등)
             - 결과 없음: 빈 컬렉션 반환
         - 단건 조회 (T, Optional<T> 등)
-            - 결과 없음: null 반환
+            - 결과 없음: null(T), Optional.empty(Optional<T>)
             - 결과가 2건 이상: javax.persistence.NonUniqueResultException 예외 발생
                              Spring Data JPA는 해당 exception을
                              org.springframework.dao.IncorrectResultSizeDataAccessException
@@ -128,5 +129,31 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     // 딱히 페이지 인터페이스가 필요하지 않고, 해당 조건에 부합하는 페이지 요소들만 가져오고 싶을 때 List를 리턴 타입으로 사용하면 된다.
     List<Member> findListByAge(int age, Pageable pageable);
+
+    /*
+    벌크성 수정 쿼리
+    - @Modifying이 있어야 EntityManager의 executeUpdate 메서드를 실행시킨다.
+    - 없다면 getResultList 등의 읽기 동작을 실행하게 된다. 그렇게 되면 IllegalStateException 이 발생하게 된다!
+      executeUpdate, getResultList 메서드의 선언 파일에서 IllegalStateException 이 발생하는 이유에 대해서 읽어보자.
+      (javax.persistence.Query 에 정의되어 있다.)
+
+    주의점
+    - 벌크 연산은 영속성 컨텍스트와 연관없이 바로 DB에 쿼리를 날린다.
+      따라서 영속성 컨텍스트는 옛날 데이터를 가지고 있는 것이므로 실제 DB 속의 내용과 차이가 발생한다.
+      이 점을 유의해야 한다!
+      (JPA 뿐만 아니라 다른 MyBatis 같은 라이브러리를 사용할 때도 마찬가지이다. MyBatis 같은 경우도 DB에 바로 쿼리를 날리기 때문이다.)
+    - 한 Transaction 내에 벌크 연산만 있다면 상관 없지만,
+      한 Transaction 내에 벌크 연산과 다른 연산(조회 등)이 섞여 있다면 조심해야 한다.
+      DB의 최신 데이터가 아니라 영속성 컨텍스트 내의 데이터를 사용할 수도 있기 때문이다.
+    - 이것을 해결하기 위해서는?
+        - 영속성 컨텍스트에 엔티티가 없는 상태에서 벌크 연산을 먼저 실행한다.
+        - 부득이하게 영속성 컨텍스트에 엔티티가 있으면 벌크 연산 직후 영속성 컨텍스트를 초기화 한다. (2가지 방법)
+            - 벌크 연산 후 EntityManager의 clear() 실행
+            - @Modifying(clearAutomatically = true) 설정 --> 자동 clear
+     */
+    @Modifying
+    //@Modifying(clearAutomatically = true)
+    @Query("update Member m set m.age = m.age + 1 where m.age >= :age")
+    int bulkAgePlus(@Param("age") int age);
 
 }

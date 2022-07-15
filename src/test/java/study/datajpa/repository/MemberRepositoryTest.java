@@ -8,11 +8,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
+import javax.persistence.EntityManager;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -21,13 +23,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @Transactional
-//@Rollback(false)
 class MemberRepositoryTest {
 
     @Autowired
     MemberRepository memberRepository;
     @Autowired
     TeamRepository teamRepository;
+    @Autowired
+    EntityManager em;
 
     @Test
     public void testMember() {
@@ -350,6 +353,53 @@ class MemberRepositoryTest {
         List<Member> content = page.getContent();
         content.forEach(System.out::println);
 
+    }
+
+    @Test
+    //@Commit
+    public void bulkUpdateWithoutClear() {
+        // given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 19));
+        memberRepository.save(new Member("member3", 20));
+        memberRepository.save(new Member("member4", 21));
+        memberRepository.save(new Member("member5", 40));
+
+        // when
+        int resultCount = memberRepository.bulkAgePlus(20); // 이것도 JPQL이기 때문에 실행 전에 flush가 실행된다.
+
+        // 벌크 연산은 영속성 컨텍스트와 연관없이 바로 DB에 쿼리를 날리기 때문에
+        // 영속성 컨텍스트의 내용과 벌크 연산 후의 DB의 내용은 다르다.
+        // 이 점이 벌크 연산의 주의점이다.
+        List<Member> result = memberRepository.findByUsername("member5");
+        Member member5 = result.get(0);
+
+        // then
+        assertEquals(3, resultCount);
+        assertEquals(40, member5.getAge());
+    }
+
+    @Test
+    public void bulkUpdateWithClear() {
+        // given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 19));
+        memberRepository.save(new Member("member3", 20));
+        memberRepository.save(new Member("member4", 21));
+        memberRepository.save(new Member("member5", 40));
+
+        // when
+        int resultCount = memberRepository.bulkAgePlus(20); // 이것도 JPQL이기 때문에 실행 전에 flush가 실행된다.
+
+        // 영속성 컨텍스트를 clear 해 주어(캐쉬 클리어) 추후 데이터를 가져올 때 DB로부터 새로 데이터를 받도록 하였다.
+        em.clear();
+
+        List<Member> result = memberRepository.findByUsername("member5");
+        Member member5 = result.get(0);
+
+        // then
+        assertEquals(3, resultCount);
+        assertEquals(41, member5.getAge());
     }
 
 
